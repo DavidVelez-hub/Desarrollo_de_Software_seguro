@@ -1,13 +1,15 @@
 package com.gestion.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Funcionario {
     private int id;
     private String numeroDocumento;
     private String nombreCompleto;
-    private String tipoDocumentoId; // Ahora es VARCHAR (nombre)
-    private String estadoCivilId;   // Ahora es VARCHAR (nombre)
+    private String tipoDocumentoId; 
+    private String estadoCivilId;   
     private LocalDate fechaNacimiento;
     private String telefono;
     private String email;
@@ -15,21 +17,20 @@ public class Funcionario {
     private LocalDate fechaIngreso;
     private String cargo;
     
-    // Campos transitorios para mostrar nombres de relaciones
     private String tipoDocumentoNombre;
     private String estadoCivilNombre;
 
-    // Constructor vacío
+    private List<FormacionAcademica> formaciones = new ArrayList<>();
+    private List<GrupoFamiliar> familiares = new ArrayList<>();
+
     public Funcionario() {}
 
-    // Constructor con datos principales
     public Funcionario(String numeroDocumento, String nombreCompleto, String tipoDocumentoId) {
         this.numeroDocumento = numeroDocumento;
         this.nombreCompleto = nombreCompleto;
         this.tipoDocumentoId = tipoDocumentoId;
     }
 
-    // GETTERS Y SETTERS
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
@@ -68,6 +69,12 @@ public class Funcionario {
 
     public String getEstadoCivilNombre() { return estadoCivilNombre; }
     public void setEstadoCivilNombre(String estadoCivilNombre) { this.estadoCivilNombre = estadoCivilNombre; }
+
+    public List<FormacionAcademica> getFormaciones() { return formaciones; }
+    public void setFormaciones(List<FormacionAcademica> formaciones) { this.formaciones = formaciones; }
+
+    public List<GrupoFamiliar> getFamiliares() { return familiares; }
+    public void setFamiliares(List<GrupoFamiliar> familiares) { this.familiares = familiares; }
 
     @Override
     public String toString() {

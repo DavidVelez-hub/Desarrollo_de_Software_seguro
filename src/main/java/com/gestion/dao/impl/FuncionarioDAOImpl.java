@@ -2,7 +2,9 @@ package com.gestion.dao.impl;
 
 import com.gestion.dao.FuncionarioDAO;
 import com.gestion.exception.DAOException;
+import com.gestion.model.FormacionAcademica;
 import com.gestion.model.Funcionario;
+import com.gestion.model.GrupoFamiliar;
 import com.gestion.util.DBConnection;
 
 import java.sql.*;
@@ -50,6 +52,7 @@ public class FuncionarioDAOImpl implements FuncionarioDAO {
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     f = mapearFuncionario(rs);
+                    cargarDatosRelacionados(f, conn);
                 }
             }
         } catch (SQLException e) {
@@ -64,23 +67,43 @@ public class FuncionarioDAOImpl implements FuncionarioDAO {
                      "estado_civil_id, fecha_nacimiento, telefono, email, direccion, fecha_ingreso, cargo) " +
                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        Connection conn = null;
+        try {
+            conn = DBConnection.getConnection();
+            conn.setAutoCommit(false);
             
-            pstmt.setString(1, f.getNumeroDocumento());
-            pstmt.setString(2, f.getNombreCompleto());
-            pstmt.setString(3, f.getTipoDocumentoId());
-            pstmt.setString(4, f.getEstadoCivilId());
-            pstmt.setDate(5, Date.valueOf(f.getFechaNacimiento()));
-            pstmt.setString(6, f.getTelefono());
-            pstmt.setString(7, f.getEmail());
-            pstmt.setString(8, f.getDireccion());
-            pstmt.setDate(9, Date.valueOf(f.getFechaIngreso()));
-            pstmt.setString(10, f.getCargo());
+            try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                pstmt.setString(1, f.getNumeroDocumento());
+                pstmt.setString(2, f.getNombreCompleto());
+                pstmt.setString(3, f.getTipoDocumentoId());
+                pstmt.setString(4, f.getEstadoCivilId());
+                pstmt.setDate(5, Date.valueOf(f.getFechaNacimiento()));
+                pstmt.setString(6, f.getTelefono());
+                pstmt.setString(7, f.getEmail());
+                pstmt.setString(8, f.getDireccion());
+                pstmt.setDate(9, Date.valueOf(f.getFechaIngreso()));
+                pstmt.setString(10, f.getCargo());
+                
+                pstmt.executeUpdate();
+                
+                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        f.setId(generatedKeys.getInt(1));
+                    }
+                }
+            }
             
-            pstmt.executeUpdate();
+            guardarDatosRelacionados(f, conn);
+            conn.commit();
         } catch (SQLException e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ex) { /* ignore */ }
+            }
             throw new DAOException("Error al crear funcionario: " + e.getMessage(), e);
+        } finally {
+            if (conn != null) {
+                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ex) { /* ignore */ }
+            }
         }
     }
 
@@ -90,24 +113,38 @@ public class FuncionarioDAOImpl implements FuncionarioDAO {
                      "estado_civil_id=?, fecha_nacimiento=?, telefono=?, email=?, direccion=?, fecha_ingreso=?, cargo=? " +
                      "WHERE id=?";
                      
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-             
-            pstmt.setString(1, f.getNumeroDocumento());
-            pstmt.setString(2, f.getNombreCompleto());
-            pstmt.setString(3, f.getTipoDocumentoId());
-            pstmt.setString(4, f.getEstadoCivilId());
-            pstmt.setDate(5, Date.valueOf(f.getFechaNacimiento()));
-            pstmt.setString(6, f.getTelefono());
-            pstmt.setString(7, f.getEmail());
-            pstmt.setString(8, f.getDireccion());
-            pstmt.setDate(9, Date.valueOf(f.getFechaIngreso()));
-            pstmt.setString(10, f.getCargo());
-            pstmt.setInt(11, f.getId());
+        Connection conn = null;
+        try {
+            conn = DBConnection.getConnection();
+            conn.setAutoCommit(false);
             
-            pstmt.executeUpdate();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, f.getNumeroDocumento());
+                pstmt.setString(2, f.getNombreCompleto());
+                pstmt.setString(3, f.getTipoDocumentoId());
+                pstmt.setString(4, f.getEstadoCivilId());
+                pstmt.setDate(5, Date.valueOf(f.getFechaNacimiento()));
+                pstmt.setString(6, f.getTelefono());
+                pstmt.setString(7, f.getEmail());
+                pstmt.setString(8, f.getDireccion());
+                pstmt.setDate(9, Date.valueOf(f.getFechaIngreso()));
+                pstmt.setString(10, f.getCargo());
+                pstmt.setInt(11, f.getId());
+                
+                pstmt.executeUpdate();
+            }
+            
+            guardarDatosRelacionados(f, conn);
+            conn.commit();
         } catch (SQLException e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ex) { /* ignore */ }
+            }
             throw new DAOException("Error al actualizar funcionario: " + e.getMessage(), e);
+        } finally {
+            if (conn != null) {
+                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ex) { /* ignore */ }
+            }
         }
     }
 
@@ -159,5 +196,79 @@ public class FuncionarioDAOImpl implements FuncionarioDAO {
         }
         
         return f;
+    }
+
+    private void cargarDatosRelacionados(Funcionario f, Connection conn) throws SQLException {
+       
+        String sqlFormacion = "SELECT * FROM formacion_academica WHERE funcionario_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sqlFormacion)) {
+            pstmt.setInt(1, f.getId());
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    FormacionAcademica fa = new FormacionAcademica();
+                    fa.setId(rs.getInt("id"));
+                    fa.setFuncionarioId(rs.getInt("funcionario_id"));
+                    fa.setNivelEstudio(rs.getString("nivel_estudio"));
+                    fa.setTituloObtenido(rs.getString("titulo_obtenido"));
+                    fa.setInstitucion(rs.getString("institucion"));
+                    fa.setEstado(rs.getString("estado"));
+                    f.getFormaciones().add(fa);
+                }
+            }
+        }
+
+        String sqlFamiliar = "SELECT * FROM grupo_familiar WHERE funcionario_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sqlFamiliar)) {
+            pstmt.setInt(1, f.getId());
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    GrupoFamiliar gf = new GrupoFamiliar();
+                    gf.setId(rs.getInt("id"));
+                    gf.setFuncionarioId(rs.getInt("funcionario_id"));
+                    gf.setNombre(rs.getString("nombre"));
+                    gf.setParentezco(rs.getString("parentezco"));
+                    f.getFamiliares().add(gf);
+                }
+            }
+        }
+    }
+
+    private void guardarDatosRelacionados(Funcionario f, Connection conn) throws SQLException {
+        
+        String deleteFormacion = "DELETE FROM formacion_academica WHERE funcionario_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(deleteFormacion)) {
+            pstmt.setInt(1, f.getId());
+            pstmt.executeUpdate();
+        }
+
+        String deleteFamiliar = "DELETE FROM grupo_familiar WHERE funcionario_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(deleteFamiliar)) {
+            pstmt.setInt(1, f.getId());
+            pstmt.executeUpdate();
+        }
+
+        String insertFormacion = "INSERT INTO formacion_academica (funcionario_id, nivel_estudio, titulo_obtenido, institucion, estado) VALUES (?, ?, ?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(insertFormacion)) {
+            for (FormacionAcademica fa : f.getFormaciones()) {
+                pstmt.setInt(1, f.getId());
+                pstmt.setString(2, fa.getNivelEstudio());
+                pstmt.setString(3, fa.getTituloObtenido());
+                pstmt.setString(4, fa.getInstitucion());
+                pstmt.setString(5, fa.getEstado());
+                pstmt.addBatch();
+            }
+            pstmt.executeBatch();
+        }
+
+        String insertFamiliar = "INSERT INTO grupo_familiar (funcionario_id, nombre, parentezco) VALUES (?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(insertFamiliar)) {
+            for (GrupoFamiliar gf : f.getFamiliares()) {
+                pstmt.setInt(1, f.getId());
+                pstmt.setString(2, gf.getNombre());
+                pstmt.setString(3, gf.getParentezco());
+                pstmt.addBatch();
+            }
+            pstmt.executeBatch();
+        }
     }
 }

@@ -35,3 +35,22 @@ INSERT INTO funcionarios (numero_documento, nombre_completo, tipo_documento_id, 
 VALUES 
 ('123456789', 'Juan Pérez', 'Cédula', 'Casado', '1990-01-01', '3001234567', 'juan@test.com', 'Calle 123', '2023-01-15', 'Analista'),
 ('987654321', 'Maria Gomez', 'Cédula', 'Soltero', '1995-05-20', '3109876543', 'maria@test.com', 'Carrera 45', '2024-03-10', 'Diseñadora');
+
+-- 4. Nuevas Tablas Relacionadas
+CREATE TABLE IF NOT EXISTS formacion_academica (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    funcionario_id INT NOT NULL,
+    nivel_estudio VARCHAR(100) NOT NULL,
+    titulo_obtenido VARCHAR(150) NOT NULL,
+    institucion VARCHAR(150) NOT NULL,
+    estado VARCHAR(50) NOT NULL,
+    FOREIGN KEY (funcionario_id) REFERENCES funcionarios(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS grupo_familiar (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    funcionario_id INT NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
+    parentezco VARCHAR(50) NOT NULL,
+    FOREIGN KEY (funcionario_id) REFERENCES funcionarios(id) ON DELETE CASCADE
+);
